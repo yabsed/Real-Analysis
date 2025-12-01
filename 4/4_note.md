@@ -83,5 +83,5 @@ Analyzing how and where functions fail to be continuous.
 
 ### **Summary of Implications**
 
-$$\text{Differentiable} \implies \text{Lipschitz} \implies \text{Uniformly Continuous} \implies \text{Continuous}$$
+$$\text{Differentiable + Bounded Derivative} \implies \text{Lipschitz} \implies \text{Uniformly Continuous} \implies \text{Continuous}$$
 *(Note: Reverse implications are generally false without additional assumptions like compactness).*
