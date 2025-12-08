@@ -1,143 +1,147 @@
-## 1. Generative Models via Differential Equations
-**Concept:** Generative modeling can be viewed as transforming a simple prior distribution (e.g., Gaussian) into a complex data distribution through a continuous time process.
+# **Part 1: Generative Models & Differential Equations (Week 11)**
 
-### A. ODE Flow Models
-We can define a deterministic path for data generation using an Ordinary Differential Equation (ODE):
-$$\frac{dX_t}{dt} = u_t(X_t)$$
-* **Generation:** Solve the ODE starting from $X_0 \sim p_{\text{prior}}$ to obtain $X_T \sim p_{\text{data}}$.
-* **Existence:** By the **Picard-Lindelöf Theorem**, if the velocity field $u_t$ is Lipschitz continuous, a unique solution exists.
-* **Simulation (Euler Method):**
-    $$X_{t+h} = X_t + h u_t(X_t)$$
+### **1. ODE vs. SDE Formulation**
+Generative modeling can be viewed as transforming a simple distribution (prior) into a complex data distribution via a continuous time process.
 
-### B. Stochastic Differential Equations (SDE)
-To add randomness, we introduce a diffusion term (Brownian motion).
-$$dX_t = f(X_t, t)dt + g(t)dW_t$$
-* $f(X_t, t)$: **Drift** coefficient (deterministic force).
-* $g(t)$: **Diffusion** coefficient (noise scale).
-* $W_t$: Wiener process (Brownian motion), where $W_{t+h} - W_t \sim \mathcal{N}(0, hI)$.
+* **Ordinary Differential Equation (ODE):** Deterministic flow.
+    $$\frac{dx_t}{dt} = u_t(x_t)$$
+    * **Existence & Uniqueness:** Guaranteed by the **Picard-Lindelöf Theorem** if $u_t$ is Lipschitz continuous.
+    * **Numerical Solution (Euler Method):**
+        $$x_{t+h} = x_t + h \cdot u_t(x_t)$$
 
-**Simulation (Euler-Maruyama Method):**
-Unlike standard calculus, stochastic calculus requires specific discretization.
-$$X_{t+h} = X_t + h f(X_t, t) + g(t)\sqrt{h} Z, \quad \text{where } Z \sim \mathcal{N}(0, I)$$
+* **Stochastic Differential Equation (SDE):** Adds noise (diffusion).
+    $$dx_t = f(x_t, t)dt + g(t)dW_t$$
+    * $f(x,t)$: Drift coefficient.
+    * $g(t)$: Diffusion coefficient.
+    * $W_t$: Wiener process (Brownian motion), where $W_{t+h} - W_t \sim \mathcal{N}(0, hI)$.
+    * **Numerical Solution (Euler-Maruyama):**
+        $$x_{t+h} = x_t + f(x_t, t)h + g(t)\sqrt{h} \cdot \epsilon, \quad \epsilon \sim \mathcal{N}(0, I)$$
 
----
+### **2. Deriving the Fokker-Planck Equation**
+The Fokker-Planck equation describes the time evolution of the probability density function $p_t(x)$ of particles following an SDE.
 
-## 2. The Fokker-Planck Equation (FPE)
-The FPE describes the time evolution of the probability density function $p_t(x)$ of a particle moving according to an SDE.
+**Setup:** Consider a test function $\phi(x)$ (smooth, compact support).
+Using Taylor expansion for the SDE increment $\Delta x \approx f\Delta t + g\Delta W$:
+$$\phi(x_{t+\Delta t}) \approx \phi(x_t) + \phi'(x_t)\Delta x + \frac{1}{2}\phi''(x_t)(\Delta x)^2$$
 
-**Theorem:**
-For the SDE $dX_t = f(X_t, t)dt + g(t)dW_t$, the density $p_t(x)$ satisfies:
-$$\frac{\partial p_t}{\partial t} = -\nabla \cdot [f(x,t)p_t] + \frac{1}{2}g(t)^2 \Delta p_t$$
+Taking expectations (Note: $E[\Delta W] = 0$ and $E[(\Delta W)^2] = \Delta t$):
+$$\frac{E[\phi(x_{t+\Delta t})] - E[\phi(x_t)]}{\Delta t} \approx E\left[ \phi'(x)f(x,t) + \frac{1}{2}\phi''(x)g^2(t) \right]$$
 
-**Proof Sketch (1D case):**
-1.  Consider the time evolution of the expectation of a test function $\phi(x)$:
-    $$\partial_t \mathbb{E}[\phi(X_t)] = \lim_{\Delta t \to 0} \frac{\mathbb{E}[\phi(X_{t+\Delta t})] - \mathbb{E}[\phi(X_t)]}{\Delta t}$$
-2.  Using Taylor expansion on $\phi(X_{t+\Delta t})$ and applying Ito's rules ($\mathbb{E}[\Delta W]=0, \mathbb{E}[\Delta W^2]=\Delta t$):
-    $$\partial_t \mathbb{E}[\phi(X_t)] = \mathbb{E} \left[ \phi'(X_t)f(X_t, t) + \frac{1}{2}\phi''(X_t)g(t)^2 \right]$$
-3.  Express expectations as integrals against $p_t(x)$:
-    $$\int \phi(x) \partial_t p_t dx = \int \left( \phi'(x) f p_t + \frac{1}{2}\phi''(x) g^2 p_t \right) dx$$
-4.  Apply integration by parts (assuming boundary terms vanish) to move derivatives from $\phi$ to $p_t$:
-    $$\int \phi(x) \partial_t p_t dx = \int \phi(x) \left( -\partial_x (f p_t) + \frac{1}{2} g^2 \partial_x^2 p_t \right) dx$$
-5.  Since this holds for any $\phi$, the terms inside the integral must be equal.
+By definition of expectation $\int \phi(x) p_t(x) dx$ and integration by parts (assuming boundary terms vanish):
+1.  $\int \phi' f p dx = - \int \phi \nabla \cdot (fp) dx$
+2.  $\int \phi'' g^2 p dx = \int \phi \nabla^2 (g^2 p) dx$
+
+Equating the time derivative $\partial_t p$:
+$$\frac{\partial p_t(x)}{\partial t} = -\nabla \cdot [f(x,t)p_t(x)] + \frac{1}{2}g(t)^2 \nabla^2 p_t(x)$$
 
 ---
 
-## 3. The Ornstein-Uhlenbeck (OU) Process
-A fundamental SDE used in diffusion models to corrupt data into noise.
+# **Part 2: The Reverse SDE & Score Matching (Week 12)**
 
-**Equation:**
-$$dX_t = -\beta X_t dt + \sigma dW_t$$
-* Drift: Pulls $X_t$ toward 0 (mean reversion).
-* Diffusion: Adds constant noise.
+### **1. The Reverse SDE**
+To generate data, we must reverse the diffusion process (from noise to data).
+For a forward SDE $dx = f(x,t)dt + g(t)dW_t$, the **Reverse SDE** flows backward in time (from $T$ to $0$):
 
-**Exact Solution:**
-Using the integrating factor $e^{\beta t}$:
-$$X_t = e^{-\beta t}X_0 + \sigma e^{-\beta t} \int_0^t e^{\beta s} dW_s$$
+$$d\bar{x}_t = \left[ f(\bar{x}_t, t) - g(t)^2 \nabla_x \log p_t(\bar{x}_t) \right] dt + g(t) d\bar{W}_t$$
+* $dt$ here represents a negative time step.
+* $\nabla_x \log p_t(x)$ is the **Score Function**.
 
-**Distributional Properties:**
-Given $X_0$, the conditional distribution is Gaussian:
-$$X_t | X_0 \sim \mathcal{N} \left( X_0 e^{-\beta t}, \frac{\sigma^2}{2\beta}(1 - e^{-2\beta t}) I \right)$$
+### **2. Score Matching Objectives**
+Since $p_t(x)$ is unknown, we train a neural network $s_\theta(x, t)$ to approximate the score $\nabla \log p_t(x)$.
 
-**Derivation of Variance (Ito Isometry):**
-$$\text{Var}(X_t) = \text{Var} \left( \sigma e^{-\beta t} \int_0^t e^{\beta s} dW_s \right)$$
-Using Ito Isometry $\mathbb{E}[(\int f(t)dW_t)^2] = \mathbb{E}[\int f(t)^2 dt]$:
-$$= \sigma^2 e^{-2\beta t} \int_0^t e^{2\beta s} ds = \sigma^2 e^{-2\beta t} \left[ \frac{e^{2\beta s}}{2\beta} \right]_0^t = \frac{\sigma^2}{2\beta}(1 - e^{-2\beta t})$$
-* As $t \to \infty$, the distribution converges to the stationary distribution $\mathcal{N}(0, \frac{\sigma^2}{2\beta}I)$.
+**A. Explicit Score Matching (Fisher Divergence):**
+$$\mathcal{L}(\theta) = E_{p_{data}} \left[ \frac{1}{2} ||s_\theta(x)||^2 + \text{Tr}(\nabla_x s_\theta(x)) \right]$$
+* *Issue:* Calculating $\text{Tr}(\nabla s_\theta)$ (Jacobian trace) is computationally expensive ($O(d^2)$).
+* *Hutchinson's Trace Estimator:* Approximate trace using random vectors $v \sim \mathcal{N}(0, I)$:
+    $$\text{Tr}(A) = E_v [v^T A v]$$
 
----
+**B. Denoising Score Matching (DSM):**
+Instead of matching the intractable $\nabla \log p_t(x)$, we match the conditional score $\nabla \log p_{t|0}(x_t|x_0)$, which is analytically known (Gaussian).
+$$\mathcal{L}_{DSM}(\theta) = E_{x_0, x_t} \left[ || s_\theta(x_t, t) - \nabla_{x_t} \log p_{t|0}(x_t|x_0) ||^2 \right]$$
 
-## 4. Reverse Time SDE and Score Matching
-To generate data, we must reverse the diffusion process.
-
-### A. Reverse SDE Formulation
-If the forward process is $dX_t = f(X_t, t)dt + g(t)dW_t$, the **reverse time SDE** (running from $T$ to $0$) is given by **Anderson's Theorem**:
-
-$$d\bar{X}_t = \left[ f(\bar{X}_t, t) - g(t)^2 \nabla \log p_t(\bar{X}_t) \right] dt + g(t) d\bar{W}_t$$
-
-* **Key Insight:** To simulate backward, we need the **Score Function**: $\nabla_x \log p_t(x)$.
-* We replace the unknown score with a neural network approximation $s_\theta(x, t) \approx \nabla \log p_t(x)$.
-
-### B. Score Matching Objectives
-How do we train $s_\theta(x, t)$?
-
-**1. Explicit Score Matching (Intractable):**
-Minimizing $\mathbb{E}[\| s_\theta(x) - \nabla \log p(x) \|^2]$ requires knowing $\nabla \log p(x)$, which is unknown.
-
-**2. Denoising Score Matching (DSM):**
-Instead of the true score, we match the conditional score given the clean data $X_0$:
-$$\mathcal{L}_{DSM}(\theta) = \mathbb{E}_{X_0, X_t} \left[ \| s_\theta(X_t, t) - \nabla_{X_t} \log p(X_t | X_0) \|^2 \right]$$
-* Since $p(X_t | X_0)$ is Gaussian (e.g., in OU process), $\nabla \log p(X_t | X_0)$ is easily calculable:
-    $$\nabla_{X_t} \log p(X_t | X_0) = - \frac{X_t - \mu_t(X_0)}{\Sigma_t}$$
-
-**3. Sliced Score Matching (SSM):**
-Used when $p(X_t | X_0)$ is unknown. It uses integration by parts to avoid the true score.
-$$\mathcal{L}_{SSM}(\theta) = \mathbb{E}_{X_t, v} \left[ v^T \nabla_x s_\theta(X_t, t) v + \frac{1}{2} \| s_\theta(X_t, t) \|^2 \right]$$
-* Involves the Jacobian trace $\text{Tr}(\nabla_x s_\theta)$, estimated efficiently using random projection vectors $v$ (Hutchinson's trick).
+For a Gaussian perturbation $x_t | x_0 \sim \mathcal{N}(\mu_t, \sigma_t^2 I)$:
+$$\nabla_{x_t} \log p_{t|0}(x_t|x_0) = -\frac{x_t - \mu_t}{\sigma_t^2}$$
 
 ---
 
-## 5. Tweedie's Formula
-This formula connects **denoising** (estimating the clean signal) to **score matching**.
+# **Part 3: Tweedie's Formula & Signal Recovery (Week 13)**
 
-**Setup:**
-Observe a noisy signal $Y = X + \delta Z$, where $X \sim p_X$ (clean data) and $Z \sim \mathcal{N}(0, I)$ (noise).
+### **1. Tweedie's Formula Derivation**
+Problem: Recover the clean signal $X$ from a noisy observation $Y = X + \delta Z$, where $Z \sim \mathcal{N}(0, I)$ and $\delta$ is noise level.
 
-**The Formula:**
-The posterior mean (optimal denoised estimate) is:
-$$\mathbb{E}[X | Y=y] = y + \delta^2 \nabla \log p_Y(y)$$
+The marginal density $p_Y(y)$ is the convolution of $p_X$ and the noise kernel $\phi_\delta$:
+$$p_Y(y) = \int p_X(x) \frac{1}{(2\pi \delta^2)^{d/2}} \exp\left( -\frac{||y-x||^2}{2\delta^2} \right) dx$$
 
-**Derivation Sketch:**
-1.  Write $p_Y(y) = \int p_{Y|X}(y|x)p_X(x) dx$.
-2.  Use the Gaussian property: $\nabla_y p_{Y|X}(y|x) = -\frac{y-x}{\delta^2} p_{Y|X}(y|x)$.
-3.  Compute $\nabla p_Y(y)$ using differentiation under the integral.
-4.  Rearrange to find that $\frac{\nabla p_Y(y)}{p_Y(y)} = \frac{1}{\delta^2}(\mathbb{E}[X|Y=y] - y)$.
+Differentiating $\log p_Y(y)$ with respect to $y$:
+$$\nabla \log p_Y(y) = \frac{\nabla p_Y(y)}{p_Y(y)} = \frac{1}{p_Y(y)} \int p_X(x) \frac{\partial}{\partial y} \phi_\delta(y-x) dx$$
+Using $\frac{\partial}{\partial y} \phi_\delta(y-x) = -\frac{y-x}{\delta^2} \phi_\delta(y-x)$:
+$$\nabla \log p_Y(y) = \frac{1}{p_Y(y)} \int -\frac{y-x}{\delta^2} p_X(x) \phi_\delta(y-x) dx$$
+$$\nabla \log p_Y(y) = -\frac{1}{\delta^2} \left( y - E[X|Y=y] \right)$$
 
-**Implication for Diffusion:**
-* **Score = Denoising Error.** The score $\nabla \log p_Y(y)$ is proportional to the residual $(X - Y)$.
-* This explains why predicting the noise $\epsilon$ in DDPM is equivalent to learning the score function.
+**Result (Tweedie's Formula):**
+$$E[X|Y=y] = y + \delta^2 \nabla \log p_Y(y)$$
+This confirms that the score function points towards the mean of the clean data posterior.
+
+### **2. Bayesian Interpretation of Reconstruction**
+The posterior $p(x|y)$ combines the prior and likelihood:
+$$p(x|y) \propto p(y|x)p(x) \approx \mathcal{N}(y, \delta^2 I) \cdot p(x)$$
+Using Taylor expansion on the prior $\log p_x(x)$ around $y$:
+$$\log p(x|y) \approx -\frac{||y-x||^2}{2\delta^2} + \langle \nabla \log p_x(y), x-y \rangle + C$$
+Completing the square reveals the posterior is approximately Gaussian with mean:
+$$\mu_{post} = y + \delta^2 \nabla \log p_x(y)$$
 
 ---
 
-## 6. Denoising Diffusion Probabilistic Models (DDPM)
-DDPMs are discrete-time approximations of the underlying SDEs.
+# **Part 4: The Ornstein-Uhlenbeck (OU) Process (Week 11 & 14)**
 
-### A. Forward Process
-$$q(x_t | x_{t-1}) = \mathcal{N}(x_t; \sqrt{1-\beta_t}x_{t-1}, \beta_t I)$$
-Using the notation $\alpha_t = 1 - \beta_t$ and $\bar{\alpha}_t = \prod_{s=1}^t \alpha_s$:
+### **1. SDE Formulation**
+$$dX_t = -\beta X_t dt + \delta dW_t$$
+* Mean reversion term: $-\beta X_t$.
+* Diffusion term: $\delta$.
+
+### **2. Analytical Solution**
+Use the integrating factor $e^{\beta t}$. Apply Ito's Product Rule to $Y_t = e^{\beta t} X_t$:
+$$d(e^{\beta t} X_t) = (\beta e^{\beta t} X_t) dt + e^{\beta t} (-\beta X_t dt + \delta dW_t)$$
+$$d(Y_t) = \delta e^{\beta t} dW_t$$
+Integrate from $0$ to $t$:
+$$e^{\beta t} X_t - X_0 = \int_0^t \delta e^{\beta s} dW_s$$
+$$X_t = e^{-\beta t}X_0 + \delta \int_0^t e^{-\beta(t-s)} dW_s$$
+
+### **3. Moments (Mean & Variance)**
+* **Mean:** $E[X_t] = e^{-\beta t} x_0$ (since expectation of Ito integral is 0).
+* **Variance:** Using Ito Isometry $E[(\int f(t)dW_t)^2] = \int f(t)^2 dt$:
+    $$\text{Var}(X_t) = \delta^2 e^{-2\beta t} \int_0^t e^{2\beta s} ds$$
+    $$\text{Var}(X_t) = \delta^2 e^{-2\beta t} \left[ \frac{e^{2\beta t} - 1}{2\beta} \right] = \frac{\delta^2}{2\beta}(1 - e^{-2\beta t})$$
+
+* **Stationary Distribution ($t \to \infty$):**
+    $$X_\infty \sim \mathcal{N}\left( 0, \frac{\delta^2}{2\beta} I \right)$$
+
+---
+
+# **Part 5: DDPM (Denoising Diffusion Probabilistic Models) (Week 14)**
+
+### **1. Discrete Forward Process**
+$$x_t = \sqrt{1-\beta_t} x_{t-1} + \sqrt{\beta_t} \epsilon_t$$
+Using notation $\alpha_t = 1 - \beta_t$ and $\bar{\alpha}_t = \prod_{s=1}^t \alpha_s$:
 $$x_t = \sqrt{\bar{\alpha}_t} x_0 + \sqrt{1-\bar{\alpha}_t} \epsilon, \quad \epsilon \sim \mathcal{N}(0, I)$$
 
-### B. Reverse Process
-$$p_\theta(x_{t-1} | x_t) = \mathcal{N}(x_{t-1}; \mu_\theta(x_t, t), \Sigma_\theta(x_t, t))$$
-The mean $\mu_\theta$ is parameterized to predict the noise $\epsilon_\theta$:
-$$\mu_\theta(x_t, t) = \frac{1}{\sqrt{\alpha_t}} \left( x_t - \frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}} \epsilon_\theta(x_t, t) \right)$$
+### **2. Training Objective**
+The Evidence Lower Bound (ELBO) leads to a simplified MSE loss between the actual noise $\epsilon$ and the predicted noise $\epsilon_\theta$:
+$$\mathcal{L}_{\text{simple}} = E_{t, x_0, \epsilon} \left[ || \epsilon - \epsilon_\theta(x_t, t) ||^2 \right]$$
 
-### C. Training Objective
-The Variational Lower Bound simplifies to a Mean Squared Error (MSE) on the noise vectors:
-$$\mathcal{L}(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \| \epsilon - \epsilon_\theta(\sqrt{\bar{\alpha}_t}x_0 + \sqrt{1-\bar{\alpha}_t}\epsilon, t) \|^2 \right]$$
+**Connection to Score Matching:**
+From the forward pass parameterization:
+$$\nabla_{x_t} \log p_{t|0}(x_t|x_0) = -\frac{\epsilon}{\sqrt{1-\bar{\alpha}_t}}$$
+Thus, the network predicts the (scaled) score:
+$$\epsilon_\theta(x_t, t) \approx -\sqrt{1-\bar{\alpha}_t} \nabla_{x_t} \log p_t(x_t)$$
 
-### D. Connection to SDEs
-* **Forward Limit:** As the number of steps $T \to \infty$, the discrete DDPM process converges to the continuous Variance Preserving (VP) SDE:
-    $$dX_t = -\frac{1}{2}\beta(t)X_t dt + \sqrt{\beta(t)} dW_t$$
-* **Reverse Limit:** The reverse update step corresponds to the Reverse SDE solver.
-* **Tweedie's Relation:** The score network $s_\theta$ and noise network $\epsilon_\theta$ are related by:
-    $$s_\theta(x_t, t) \approx -\frac{\epsilon_\theta(x_t, t)}{\sqrt{1-\bar{\alpha}_t}}$$
+### **3. Discrete Reverse Step**
+$$x_{t-1} = \frac{1}{\sqrt{\alpha_t}} \left( x_t - \frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}} \epsilon_\theta(x_t, t) \right) + \sigma_t z$$
+* This update rule is derived by matching the posterior $q(x_{t-1}|x_t, x_0)$.
+
+### **4. SDE Limit (Variance Preserving)**
+As steps $T \to \infty$, the discrete DDPM converges to the following SDE:
+* **Forward:**
+    $$dx_t = -\frac{1}{2}\beta(t) x_t dt + \sqrt{\beta(t)} dW_t$$
+* **Reverse:**
+    $$d\bar{x}_t = \left[ -\frac{1}{2}\beta(t)\bar{x}_t - \beta(t) \nabla \log p_t(\bar{x}_t) \right] dt + \sqrt{\beta(t)} d\bar{W}_t$$
