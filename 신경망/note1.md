@@ -1,151 +1,161 @@
-# Lecture Notes: Theoretical Foundations of Deep Learning
+# Part I: Machine Learning Foundations (Week 1)
 
-## Part 1: Decomposition of Risk (Week 6)
+## 1. Linear Regression & Projections
+### Geometric Interpretation
+The goal of linear regression is to find a coefficient vector $\beta$ such that $X\beta$ approximates the target vector $y$. Geometrically, the column space of $X$ forms a subspace (a plane). Since $y$ usually does not lie perfectly on this plane, we seek the orthogonal projection of $y$ onto the space of $X$.
 
-### 1.1 Problem Setup
-* **Data:** $S = \{(x_i, y_i)\}_{i=1}^n \sim \mathcal{D}^n$ i.i.d., where $x \in \mathcal{X}$ and $y \in \mathcal{Y}$.
-* **Goal:** Find a hypothesis $f: \mathcal{X} \to \mathcal{Y}$ within a hypothesis class $\mathcal{F}$ to minimize loss.
-* **Risk Definitions:**
-    * **Population Risk:** $R(f) = \mathbb{E}_{(x,y) \sim \mathcal{D}} [\ell(f(x), y)]$.
-    * **Empirical Risk:** $\hat{R}(f) = \frac{1}{n} \sum_{i=1}^n \ell(f(x_i), y_i)$.
-* **Hypothesis Space Constraints:** We often consider a constrained class $\mathcal{F}_{\delta} = \{ f \in \mathcal{F} : c(f) \le \delta \}$ (where $c(f)$ is a complexity measure, e.g., norm).
-* **Estimator:** $\hat{f} = \arg\min_{f \in \mathcal{F}_{\delta}} \hat{R}(f)$.
-* **Optimal:** $f^* = \arg\min_{f \in \mathcal{F}} R(f)$ (Global optimum), $f_{\mathcal{F}_{\delta}}^* = \arg\min_{f \in \mathcal{F}_{\delta}} R(f)$ (Restricted optimum).
+* **Orthogonality Condition:** The error vector (residual) $y - X\beta$ must be orthogonal to the column space of $X$.
+    $$X^T (y - X\beta) = 0$$
+* **The Normal Equation:** Solving for $\beta$:
+    $$X^T y = X^T X \beta \implies \beta = (X^T X)^{-1} X^T y$$
 
-### 1.2 The Decomposition
-The excess risk can be decomposed into three components:
+### Probabilistic Interpretation (MLE)
+If we assume the data is generated with Gaussian noise: $Y = X\beta + \epsilon$, where $\epsilon \sim \mathcal{N}(0, \sigma^2 I)$.
+The likelihood of observing the data is:
+$$p(Y | X, \beta) \propto \exp\left( -\frac{||y - X\beta||^2}{2\sigma^2} \right)$$
+Maximizing this likelihood (Maximum Likelihood Estimation - MLE) is equivalent to minimizing the negative log-likelihood, which results in the **Least Squares** objective:
+$$\min_\beta ||y - X\beta||^2$$
 
-$$
-R(\hat{f}) - R(f^*) = \underbrace{[R(\hat{f}) - R(f_{\mathcal{F}_{\delta}}^*)]}_{\text{Estimation Error}} + \underbrace{[R(f_{\mathcal{F}_{\delta}}^*) - R(f^*)]}_{\text{Approximation Error}}
-$$
+## 2. Bayesian Viewpoint: MLE vs. MAP
+### Maximum Likelihood Estimation (MLE)
+MLE estimates parameters $\theta$ by maximizing the likelihood of the data $D$:
+$$\hat{\theta}_{MLE} = \arg\max_{\theta} P(D|\theta)$$
+* **Example (Bernoulli):** For coin flips with heads probability $\theta$, if we observe $H$ heads and $T$ tails, $\hat{\theta}_{MLE} = \frac{H}{H+T}$.
 
-More strictly, taking the supremum over the class for the estimation part:
-$$
-R(\hat{f}) - \inf_{f \in \mathcal{F}_\delta} R(f) \le 2 \sup_{f \in \mathcal{F}_{\delta}} |R(f) - \hat{R}(f)| + \text{Optimization Error}
-$$
+### Maximum A Posteriori (MAP)
+MAP incorporates a **prior** belief $P(\theta)$ using Bayes' Theorem:
+$$P(\theta | D) \propto P(D | \theta) P(\theta)$$
+$$\hat{\theta}_{MAP} = \arg\max_{\theta} [\log P(D|\theta) + \log P(\theta)]$$
 
-1.  **Approximation Error:** Distance between the full target space and our restricted hypothesis class $\mathcal{F}_{\delta}$.
-2.  **Estimation Error (Generalization Gap):** The difference between empirical performance and population performance, bounded by the uniform convergence of the class: $\sup |R(f) - \hat{R}(f)|$.
-3.  **Optimization Error:** Failure to find the global minimum of $\hat{R}(f)$.
+* **Conjugate Priors:** If the likelihood is Bernoulli, a **Beta distribution** prior ($\text{Beta}(\alpha, \beta)$) is computationally convenient.
+* **Result:** The prior acts as "virtual counts." If prior is $\text{Beta}(\alpha, \beta)$, the estimate becomes:
+    $$\hat{\theta}_{MAP} = \frac{H + (\alpha - 1)}{H + T + (\alpha - 1) + (\beta - 1)}$$
+    * *Insight:* As data size $N \to \infty$, the prior's influence vanishes, and $\hat{\theta}_{MAP} \to \hat{\theta}_{MLE}$.
 
----
+## 3. Information Theory
+* **Entropy ($H(X)$):** Measure of uncertainty. $H(X) = \mathbb{E}[-\log P(X)]$.
+* **KL Divergence ($D_{KL}$):** Measures the distance between two distributions $P$ and $Q$.
+    $$D_{KL}(P||Q) = \sum P(x) \log \frac{P(x)}{Q(x)} \geq 0$$
+    * *Note:* It is asymmetric ($D_{KL}(P||Q) \neq D_{KL}(Q||P)$).
+* **Cross Entropy ($H_P(Q)$):** Used as a loss function in classification.
+    $$H_P(Q) = -\sum P(x) \log Q(x) = H(P) + D_{KL}(P||Q)$$
+    Since $H(P)$ (the entropy of the true labels) is fixed, minimizing Cross Entropy is equivalent to minimizing the KL Divergence between the predicted distribution and the true distribution.
 
-## Part 2: The Curse of Dimensionality (Week 6)
+## 4. Regularization
+Overfitting occurs when a model fits noise or is too complex for the data.
+* **Ridge Regression (L2 Regularization):** Adds a penalty term $\lambda ||\beta||^2$.
+    $$Loss = ||Y - X\beta||^2 + \lambda ||\beta||^2$$
+    * **Solution:** $\beta^* = (X^T X + \lambda I)^{-1} X^T y$. The $\lambda I$ term ensures the matrix is invertible (non-singular).
 
-Standard non-parametric estimators suffer from the curse of dimensionality.
+### Kernel Methods
+Regularization allows the use of the **Kernel Trick** to map data into high-dimensional spaces without computing coordinates explicitly.
+* Represent $\beta$ as a linear combination of data points: $\beta = \Phi(X)^T \alpha$.
+* Prediction involves only dot products $K(x_1, x_2) = \phi(x_1)^T \phi(x_2)$.
 
-* **Scenario:** Target function $f^*$ is $L$-Lipschitz.
-* **Error Rate:** To achieve an error of $\epsilon$, the number of samples $n$ required scales exponentially with dimension $d$.
-    $$\mathbb{E}[|\hat{f}(x) - f^*(x)|^2] \approx O(n^{-1/d})$$
-* **Implication:** For high-dimensional data (large $d$), standard local averaging methods fail. Deep learning attempts to overcome this by exploiting compositional structures (like Barron spaces) rather than just local smoothness.
+## 5. Logistic Regression
+Used for binary classification.
+* **Sigmoid Function:** Squashes input $z$ to $(0, 1)$.
+    $$\sigma(z) = \frac{1}{1 + e^{-z}}$$
+    * *Derivative Property:* $\sigma'(z) = \sigma(z)(1 - \sigma(z))$.
+* **Loss Function:** Negative Log-Likelihood (Binary Cross Entropy).
+    $$L = - \sum [y_i \log \sigma(w^T x_i) + (1-y_i) \log (1 - \sigma(w^T x_i))]$$
+* **Gradient:** The derivative is intuitive (Prediction - Target) $\times$ Input:
+    $$\nabla_w L = \sum (\sigma(w^T x_i) - y_i) x_i$$
+* **Hessian:** $H = X^T S X$ where $S$ is a diagonal matrix of variances. Since $S$ is positive semi-definite, the loss surface is convex (guaranteeing a global minimum).
 
----
-
-## Part 3: Universal Approximation Theorem (UAT) (Week 6)
-
-### 3.1 Statement
-A 2-layer neural network with a "sigmoidal" activation function is dense in the space of continuous functions $C(I_n)$ on a compact set $I_n$.
-
-$$G(x) = \sum_{j=1}^N \alpha_j \sigma(w_j^T x + b_j)$$
-
-### 3.2 Key Definitions
-1.  **Sigmoidal Function:** $\sigma: \mathbb{R} \to [0,1]$ such that $\lim_{z\to \infty} \sigma(z) = 1$ and $\lim_{z\to -\infty} \sigma(z) = 0$.
-2.  **Discriminatory Function:** A function $\sigma$ is discriminatory if for a signed measure $\mu$,
-    $$\int_{I_n} \sigma(w^T x + b) d\mu(x) = 0 \quad \forall w, b \implies \mu \equiv 0.$$
-
-### 3.3 Proof Sketch (Hahn-Banach & Riesz Representation)
-This proof relies on **Functional Analysis** (proof by contradiction).
-
-1.  Let $S$ be the subspace of neural networks. Assume $S$ is **not** dense in $C(I_n)$.
-2.  **Hahn-Banach Theorem:** There exists a bounded linear functional $L$ on $C(I_n)$ such that $L(g) = 0$ for all $g \in S$, but $L \neq 0$.
-3.  **Riesz Representation Theorem (RRT):** Any bounded linear functional $L$ on $C(I_n)$ can be represented uniquely by a signed regular Borel measure $\mu$:
-    $$L(f) = \int_{I_n} f(x) d\mu(x)$$
-4.  Since $\sigma(w^T x + b) \in S$, we have:
-    $$\int_{I_n} \sigma(w^T x + b) d\mu(x) = 0 \quad \forall w, b$$
-5.  **Discriminatory Property:** It is proven (Lemma) that continuous sigmoidal functions are discriminatory. Therefore, the condition above implies $\mu = 0$.
-6.  **Contradiction:** If $\mu = 0$, then $L = 0$, which contradicts step 2. Thus, $S$ must be dense.
-
----
-
-## Part 4: Approximation Error & Maurey's Theorem (Week 7)
-
-While UAT guarantees existence (density), it does not quantify the rate (efficiency) or the number of neurons needed. We use **Barron Spaces** and **Maurey’s Theorem** for this.
-
-### 4.1 Maurey’s Theorem (Jones-Barron)
-**Theorem:** Let $H$ be a Hilbert space. Let $G \subset H$ be a subset such that $\|g\| \le B$ for all $g \in G$. Let $f$ be in the closure of the convex hull of $G$ ($f \in \overline{\text{conv}(G)}$).
-Then, for any $N \ge 1$, there exists a function $f_N$ which is a convex combination of $N$ elements from $G$ such that:
-$$\| f - f_N \|^2 \le \frac{B^2}{N}$$
-
-### 4.2 Proof Idea: Probabilistic Method
-This proof is crucial for understanding why $N$ neurons approximate well.
-
-1.  Since $f \in \text{conv}(G)$, we can write $f = \sum \alpha_j h_j$ where $\sum \alpha_j = 1, \alpha_j \ge 0$.
-2.  Define a random variable $Z$ taking values in $\{h_j\}$ with probability $P(Z = h_j) = \alpha_j$.
-    * $\mathbb{E}[Z] = \sum \alpha_j h_j = f$.
-    * $\|Z\| \le B$ almost surely.
-3.  Let $Z_1, \dots, Z_N$ be i.i.d. copies of $Z$. Define the approximation $f_N = \frac{1}{N} \sum_{i=1}^N Z_i$.
-4.  Analyze the expected squared error:
-    $$\mathbb{E}[\| f - f_N \|^2] = \mathbb{E} \left[ \left\| \mathbb{E}[Z] - \frac{1}{N} \sum_{i=1}^N Z_i \right\|^2 \right] = \text{Var}(f_N)$$
-5.  By independence:
-    $$\text{Var}\left( \frac{1}{N} \sum Z_i \right) = \frac{1}{N^2} \sum \text{Var}(Z_i) = \frac{1}{N} \text{Var}(Z)$$
-6.  Since $\text{Var}(Z) = \mathbb{E}[\|Z\|^2] - \|f\|^2 \le B^2$, we get:
-    $$\mathbb{E}[\| f - f_N \|^2] \le \frac{B^2}{N}$$
-7.  Since the expectation is bounded by $B^2/N$, there must exist at least one specific realization $f_N$ satisfying the bound.
-
-### 4.3 Implication for Neural Networks
-If the target function $f^*$ lies in a "Barron Space" (defined by spectral properties of its Fourier transform), it can be approximated by a 2-layer network with $N$ neurons with error $O(1/N)$ (squared error) or $O(1/\sqrt{N})$ (RMSE).
-* Notably, this rate is **independent of input dimension $d$**, avoiding the curse of dimensionality for this specific function class.
+## 6. Support Vector Machines (SVM)
+SVM seeks a hyperplane $w^T x + b = 0$ that maximizes the **margin** (distance to the nearest data points).
+* **Geometry:** The distance from a point $x_i$ to the hyperplane is $\frac{|w^T x_i + b|}{||w||}$.
+* **Hard Margin Formulation:**
+    We impose constraint $y_i(w^T x_i + b) \geq 1$. To maximize the margin $\frac{1}{||w||}$, we minimize $||w||^2$.
+    $$\min_{w,b} \frac{1}{2}||w||^2 \quad \text{subject to} \quad y_i(w^T x_i + b) \geq 1$$
+* **Soft Margin:** Introduces slack variables for non-linearly separable data.
+* **Dual Formulation:** Solved using Lagrange Multipliers ($\alpha_i$). The solution depends only on support vectors (where $\alpha_i > 0$).
 
 ---
 
-## Part 5: Estimation Error & Rademacher Complexity (Week 7 & 8)
+# Part II: Deep Learning Optimization (Week 1)
 
-To bound the generalization error (Estimation Error), we measure the capacity of the hypothesis class using Rademacher Complexity.
+## 1. Weight Initialization
+Proper initialization is crucial to prevent vanishing or exploding gradients. The goal is to keep the variance of activations constant across layers.
+Let $y = \sum w_i x_i$. If variances are independent: $Var(y) = N_{in} \cdot Var(w) \cdot Var(x)$.
 
-### 5.1 Definition
-Let $\mathcal{F}$ be a hypothesis class and $S = \{z_1, \dots, z_n\}$ be a fixed sample.
-The **Empirical Rademacher Complexity** is:
-$$\hat{\mathfrak{R}}_S(\mathcal{F}) = \mathbb{E}_{\sigma} \left[ \sup_{f \in \mathcal{F}} \frac{1}{n} \sum_{i=1}^n \sigma_i f(z_i) \right]$$
-where $\sigma_i$ are i.i.d. Rademacher variables ($P(\sigma_i = 1) = P(\sigma_i = -1) = 0.5$).
-* **Intuition:** It measures how well the class $\mathcal{F}$ can correlate with random noise. A rich class can fit noise perfectly (high complexity).
+* **Xavier Initialization:** Designed for **Sigmoid/Tanh** (linear regions).
+    To maintain variance ($Var(y) = Var(x)$), we need $N_{in} Var(w) = 1$.
+    $$Var(w) = \frac{1}{N_{in}}$$
+* **He Initialization:** Designed for **ReLU**.
+    ReLU zeroes out half the neurons, halving the variance. We must double the weight variance to compensate.
+    $$Var(w) = \frac{2}{N_{in}}$$
 
-### 5.2 Generalization Bound
-With probability at least $1-\delta$:
-$$\sup_{f \in \mathcal{F}} |R(f) - \hat{R}(f)| \le 2 \mathfrak{R}_n(\mathcal{F}) + \sqrt{\frac{\log(1/\delta)}{2n}}$$
+## 2. Gradient Descent (GD) Theory
+### Smoothness and Convergence
+A function $f$ is **$\beta$-smooth** if its gradient does not change too fast (bounded by $\beta$).
+$$||\nabla f(x) - \nabla f(y)|| \leq \beta ||x - y||$$
+**Key Lemma:** For a $\beta$-smooth function:
+$$f(y) \leq f(x) + \langle \nabla f(x), y-x \rangle + \frac{\beta}{2} ||y-x||^2$$
+Substituting the GD update rule $x_{t+1} = x_t - \eta \nabla f(x_t)$:
+$$f(x_{t+1}) \leq f(x_t) - \eta ||\nabla f(x_t)||^2 + \frac{\beta \eta^2}{2} ||\nabla f(x_t)||^2$$
+If we choose step size $\eta = 1/\beta$, we guarantee descent.
 
-### 5.3 Complexity of 2-Layer ReLU Networks (Week 8)
-We want to bound $\mathfrak{R}_n(\mathcal{F})$ for the class of 2-layer ReLU networks with bounded path-norm.
+### Stochastic Gradient Descent (SGD)
+Uses a mini-batch or single sample.
+* **Convergence:** $O(1/\sqrt{T})$. Noise prevents perfect convergence to the critical point but allows escape from shallow local minima.
 
-**Class Definition:**
-$$\mathcal{F}_{m, \sigma, B} = \left\{ f(x) = \sum_{j=1}^m \beta_j \sigma(w_j^T x) \;\middle|\; \sum_{j=1}^m |\beta_j| \|w_j\|_2 \le B \right\}$$
-Assumption: Data is bounded $\|x\|_2 \le C$.
+## 3. Advanced Optimizers
+* **Momentum:** Accumulates a velocity vector $v$. helps dampen oscillations and pass through flat regions.
+    $$v_{t+1} = \rho v_t - \alpha \nabla f(x_t)$$
+    $$x_{t+1} = x_t + v_{t+1}$$
+* **Nesterov Momentum:** Calculates gradient at the "lookahead" position ($x_t + \rho v_t$) rather than current position.
+* **Adagrad:** Adapts learning rates for each parameter. Large gradients $\to$ reduced learning rate.
+    $$x_{t+1} = x_t - \frac{\eta}{\sqrt{G_t + \epsilon}} \odot g_t$$
+    *Drawback:* Learning rate shrinks monotonically to zero.
+* **RMSProp:** Solves Adagrad's shrinking issue by using an exponential moving average of squared gradients.
+* **Adam:** Combines Momentum (1st moment) and RMSProp (2nd moment). Includes bias correction for early steps.
 
-**Derivation Steps (Key Proof):**
+## 4. Batch Normalization (BN)
+Addresses **Internal Covariate Shift** (distribution of layer inputs changing during training).
+* **Mechanism:** Normalizes a batch $B = \{x_1, \dots, x_m\}$ to have mean 0 and variance 1, then scales and shifts.
+    $$\hat{x}_i = \frac{x_i - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}}$$
+    $$y_i = \gamma \hat{x}_i + \beta$$
+* **Benefits:** Allows higher learning rates, acts as a regularizer, and makes the loss landscape smoother (Lipschitz constant improves).
 
-1.  **Homogeneity:** Since ReLU is positive homogeneous ($\alpha \sigma(x) = \sigma(\alpha x)$ for $\alpha > 0$), we can re-parameterize weights such that $\|w_j\|_2 = 1$ and absorb the magnitude into $\beta_j$. The constraint becomes $\sum |\tilde{\beta}_j| \le B$.
-    $$f(x) = \sum_{j=1}^m \tilde{\beta}_j \sigma(\tilde{w}_j^T x), \quad \|\tilde{w}_j\|_2 = 1$$
+---
 
-2.  **Supremum Bound:**
-    $$\hat{\mathfrak{R}}_S = \frac{1}{n} \mathbb{E}_\sigma \left[ \sup_{\|\beta\|_1 \le B, \|w_j\| \le 1} \sum_{i=1}^n \sigma_i \sum_{j=1}^m \beta_j \sigma(w_j^T x_i) \right]$$
-    Since the inner sum is linear in $\beta$, the supremum occurs at an extreme point (one active neuron).
-    $$\le \frac{B}{n} \mathbb{E}_\sigma \left[ \sup_{\|w\| \le 1} \left| \sum_{i=1}^n \sigma_i \sigma(w^T x_i) \right| \right]$$
+# Part III: Convolutional Neural Networks (Week 5)
 
-3.  **Talagrand's Contraction Lemma:** Since $\sigma(\cdot)$ (ReLU) is 1-Lipschitz and $\sigma(0)=0$, we can remove it from the Rademacher average (costing at most a factor of 2, or 1 depending on the version).
-    $$\mathbb{E}_\sigma \left[ \sup_{\|w\| \le 1} \sum \sigma_i \sigma(w^T x_i) \right] \le \mathbb{E}_\sigma \left[ \sup_{\|w\| \le 1} \sum \sigma_i (w^T x_i) \right]$$
+## 1. CNN Basics
+* **Convolution Operation:** Translation equivariant. Defined by Kernel size ($K$), Stride ($S$), and Padding ($P$).
+* **Output Dimension Calculation:**
+    For input size $N$, the output size $N'$ is:
+    $$N' = \left\lfloor \frac{N - K + 2P}{S} \right\rfloor + 1$$
+* **Pooling:** (Max or Average) Reduces spatial dimensions, providing translation invariance.
 
-4.  **Cauchy-Schwarz:**
-    $$\sup_{\|w\| \le 1} \sum \sigma_i w^T x_i = \sup_{\|w\| \le 1} w^T \left( \sum \sigma_i x_i \right) = \left\| \sum \sigma_i x_i \right\|_2$$
+## 2. Key Architectures
 
-5.  **Final Calculation:**
-    $$\mathbb{E}_\sigma \left[ \left\| \sum \sigma_i x_i \right\|_2 \right] \le \sqrt{\mathbb{E} \left\| \sum \sigma_i x_i \right\|^2} = \sqrt{\sum \|x_i\|^2} = \sqrt{n C^2}$$
-    (Using Jensen's inequality and independence of $\sigma_i$).
+### AlexNet (2012)
+The breakthrough architecture.
+* **Input:** $227 \times 227 \times 3$.
+* **Key Features:** Used ReLU (solved saturation), Dropout (reduced overfitting), and Max Pooling.
+* **Structure:** 5 Conv layers + 3 Fully Connected (FC) layers.
+* **Stride dynamics:** Aggressive stride (4) in the first layer reduces dimension quickly ($55 \times 55$).
 
-**Result:**
-$$\text{Rad}(\mathcal{F}_{m, \sigma, B}) \le \frac{2BC}{\sqrt{n}}$$
+### ZFNet
+An improvement on AlexNet based on visualizing feature maps.
+* **Insight:** AlexNet's first layer filter ($11 \times 11$) was too large and stride (4) too coarse, missing details.
+* **Change:** Reduced 1st layer filter to $7 \times 7$ and stride to 2. Resulted in better feature capture.
 
-### 5.4 Conclusion on Total Error
-Combining Maurey's Theorem (Approximation) and Rademacher Complexity (Estimation):
-$$\text{Total Error} \le O\left(\frac{1}{\sqrt{m}}\right) + O\left(\frac{BC}{\sqrt{n}}\right)$$
-* First term: Approximation error (decreases with network width $m$).
-* Second term: Estimation error (decreases with sample size $n$).
-* **Significance:** The bound depends on the *norms* ($B, C$) and sample size, not the dimension $d$. This suggests that with proper regularization (controlling $B$), deep learning can generalize well even in high dimensions.
+### GoogLeNet (Inception)
+Addressed the problem of computational cost while going deeper (22 layers).
+* **Inception Module:** Instead of choosing one filter size ($3\times3$ or $5\times5$), use them all in parallel and concatenate results.
+* **1x1 Convolution (Bottleneck):** Crucial innovation. Used to reduce depth (number of channels) *before* expensive $3\times3$ and $5\times5$ convolutions.
+    * *Example:* Reducing $28 \times 28 \times 256$ input to a smaller depth saves parameters and computation (e.g., $854M$ ops vs $112M$ ops).
+* **Auxiliary Classifiers:** Added small output networks at intermediate layers to inject gradients and combat the vanishing gradient problem during training.
+
+### ResNet (Residual Networks)
+addressed the degradation problem: simply adding layers to "plain" networks caused training error to *increase* (not just overfitting, but optimization difficulty).
+* **Residual Block:** Instead of learning mapping $H(x)$, the network learns the residual function $F(x) = H(x) - x$.
+    $$H(x) = F(x) + x$$
+    * The "skip connection" (identity shortcut) allows gradients to flow directly through the network during backpropagation.
+* **Initial Identity:** If optimal $H(x) \approx x$, the weights of $F(x)$ are driven to 0, which is easier than learning an identity matrix.
+* **Architecture:** Heavily uses $3 \times 3$ convolutions and Global Average Pooling (no heavy FC layers at the end).
+* **Bottleneck Block:** In deeper ResNets (50+ layers), uses $1\times1$ conv to reduce dimensions, $3\times3$ to process, and $1\times1$ to restore dimensions.
